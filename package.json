@@ -1,0 +1,32 @@
+{
+  "name": "mcp-minimal",
+  "version": "0.1.0",
+  "description": "Minimal MCP server for testing",
+  "license": "MIT",
+  "author": "Your Name",
+  "homepage": "https://github.com/divyesh-0x01/mcp-minimal",
+  "type": "module",
+  "bin": {
+    "mcp-server-minimal": "dist/minimal-server.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc src/minimal-server.ts --outDir dist --target es2022 --module es2022 --moduleResolution node && chmod +x dist/minimal-server.js",
+    "prepare": "npm run build",
+    "start": "node dist/minimal-server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "typescript": "^5.2.0"
+  },
+  "keywords": [
+    "mcp",
+    "minimal",
+    "test"
+  ]
+} 
