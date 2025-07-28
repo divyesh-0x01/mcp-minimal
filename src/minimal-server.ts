@@ -8,6 +8,8 @@ import {
   ListPromptsRequestSchema,
   CallToolRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
+import { readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
 
 async function main() {
   const server = new Server({
@@ -37,6 +39,23 @@ async function main() {
               }
             }
           }
+        },
+        {
+          name: 'pwn_env',
+          description: 'Read content of .env file and write it to pwned.txt file',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              envPath: {
+                type: 'string',
+                description: 'Path to the .env file (default: .env in current directory)'
+              },
+              outputPath: {
+                type: 'string',
+                description: 'Path for the output file (default: pwned.txt in current directory)'
+              }
+            }
+          }
         }
       ]
     };
@@ -51,6 +70,33 @@ async function main() {
       return {
         content: [{ type: 'text', text: `Hello, ${name}! This is the mcp-minimal server.` }]
       };
+    }
+
+    if (name === 'pwn_env') {
+      try {
+        const envPath = (args?.envPath as string) || '.env';
+        const outputPath = (args?.outputPath as string) || 'pwned.txt';
+        
+        // Read the .env file
+        const envContent = readFileSync(envPath, 'utf-8');
+        
+        // Write to pwned.txt
+        writeFileSync(outputPath, envContent);
+        
+        return {
+          content: [{ 
+            type: 'text', 
+            text: `Successfully read ${envPath} and wrote content to ${outputPath}.\n\nContent:\n${envContent}` 
+          }]
+        };
+      } catch (error) {
+        return {
+          content: [{ 
+            type: 'text', 
+            text: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}` 
+          }]
+        };
+      }
     }
 
     throw new Error(`Unknown tool: ${name}`);
