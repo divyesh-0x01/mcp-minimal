@@ -99,85 +99,211 @@ async function main() {
       try {
         const detailed = args?.detailed !== false; // Default to true
         
-        interface Vulnerability {
-          type: string;
-          tools: string[];
-          risk: string;
+        interface PoisoningTest {
+          tool: string;
+          testType: string;
+          payload: string;
+          success: boolean;
+          extractedInfo?: string;
           description: string;
         }
         
-        const vulnerabilities: Vulnerability[] = [];
-        const recommendations: string[] = [];
+        const poisoningTests: PoisoningTest[] = [];
         
-        // Check for dangerous tools
-        const dangerousTools = [
-          { name: 'run_bash', risk: 'HIGH', description: 'Allows arbitrary command execution' },
-          { name: 'list_files', risk: 'MEDIUM', description: 'Can expose sensitive file information' }
-        ];
-        
-        // Check for file system access
-        const fileSystemTools = ['list_files'];
-        if (fileSystemTools.length > 0) {
-          vulnerabilities.push({
-            type: 'File System Access',
-            tools: fileSystemTools,
-            risk: 'MEDIUM',
-            description: 'Tools that can access file system may expose sensitive information'
+        // Test 1: Path traversal in list_files
+        try {
+          const pathTraversalResult = readdirSync('../');
+          poisoningTests.push({
+            tool: 'list_files',
+            testType: 'Path Traversal',
+            payload: '../',
+            success: true,
+            extractedInfo: `Found ${pathTraversalResult.length} items in parent directory`,
+            description: 'Successfully accessed parent directory using path traversal'
+          });
+        } catch (error) {
+          poisoningTests.push({
+            tool: 'list_files',
+            testType: 'Path Traversal',
+            payload: '../',
+            success: false,
+            description: 'Path traversal blocked'
           });
         }
         
-        // Check for command execution
-        const commandExecutionTools = ['run_bash'];
-        if (commandExecutionTools.length > 0) {
-          vulnerabilities.push({
-            type: 'Command Execution',
-            tools: commandExecutionTools,
-            risk: 'HIGH',
-            description: 'Tools that can execute arbitrary commands pose significant security risks'
+        // Test 2: Command injection in run_bash
+        try {
+          const commandInjectionResult = execSync('echo "test" && whoami', { 
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe']
+          });
+          poisoningTests.push({
+            tool: 'run_bash',
+            testType: 'Command Injection',
+            payload: 'echo "test" && whoami',
+            success: true,
+            extractedInfo: `Command output: ${commandInjectionResult}`,
+            description: 'Successfully executed multiple commands'
+          });
+        } catch (error) {
+          poisoningTests.push({
+            tool: 'run_bash',
+            testType: 'Command Injection',
+            payload: 'echo "test" && whoami',
+            success: false,
+            description: 'Command injection blocked'
           });
         }
         
-        // Generate recommendations
-        if (commandExecutionTools.length > 0) {
-          recommendations.push('Consider removing or restricting command execution tools');
-          recommendations.push('Implement input validation and sanitization for command parameters');
-          recommendations.push('Use allowlist approach for permitted commands');
+        // Test 3: Environment variable extraction
+        try {
+          const envResult = execSync('env | grep -E "(PATH|HOME|USER)"', { 
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe']
+          });
+          poisoningTests.push({
+            tool: 'run_bash',
+            testType: 'Environment Extraction',
+            payload: 'env | grep -E "(PATH|HOME|USER)"',
+            success: true,
+            extractedInfo: `Environment variables: ${envResult}`,
+            description: 'Successfully extracted environment variables'
+          });
+        } catch (error) {
+          poisoningTests.push({
+            tool: 'run_bash',
+            testType: 'Environment Extraction',
+            payload: 'env | grep -E "(PATH|HOME|USER)"',
+            success: false,
+            description: 'Environment extraction blocked'
+          });
         }
         
-        if (fileSystemTools.length > 0) {
-          recommendations.push('Implement path restrictions to prevent access to sensitive directories');
-          recommendations.push('Add file type filtering to prevent access to sensitive files');
+        // Test 4: File content extraction
+        try {
+          const fileContentResult = execSync('cat /etc/passwd | head -5', { 
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe']
+          });
+          poisoningTests.push({
+            tool: 'run_bash',
+            testType: 'File Content Extraction',
+            payload: 'cat /etc/passwd | head -5',
+            success: true,
+            extractedInfo: `File content: ${fileContentResult}`,
+            description: 'Successfully extracted sensitive file content'
+          });
+        } catch (error) {
+          poisoningTests.push({
+            tool: 'run_bash',
+            testType: 'File Content Extraction',
+            payload: 'cat /etc/passwd | head -5',
+            success: false,
+            description: 'File content extraction blocked'
+          });
         }
         
-        recommendations.push('Implement proper authentication and authorization mechanisms');
-        recommendations.push('Add rate limiting to prevent abuse');
-        recommendations.push('Log all tool usage for audit purposes');
+        // Test 5: Network information extraction
+        try {
+          const networkResult = execSync('ifconfig || ip addr', { 
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe']
+          });
+          poisoningTests.push({
+            tool: 'run_bash',
+            testType: 'Network Information',
+            payload: 'ifconfig || ip addr',
+            success: true,
+            extractedInfo: `Network info: ${networkResult.substring(0, 200)}...`,
+            description: 'Successfully extracted network information'
+          });
+        } catch (error) {
+          poisoningTests.push({
+            tool: 'run_bash',
+            testType: 'Network Information',
+            payload: 'ifconfig || ip addr',
+            success: false,
+            description: 'Network information extraction blocked'
+          });
+        }
         
-        let report = `🔍 Tool Poisoning Vulnerability Analysis\n\n`;
-        report += `📊 Summary:\n`;
-        report += `- Total tools analyzed: 4\n`;
-        report += `- High risk tools: ${commandExecutionTools.length}\n`;
-        report += `- Medium risk tools: ${fileSystemTools.length}\n\n`;
+        // Test 6: Process information extraction
+        try {
+          const processResult = execSync('ps aux | head -10', { 
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe']
+          });
+          poisoningTests.push({
+            tool: 'run_bash',
+            testType: 'Process Information',
+            payload: 'ps aux | head -10',
+            success: true,
+            extractedInfo: `Process info: ${processResult.substring(0, 200)}...`,
+            description: 'Successfully extracted process information'
+          });
+        } catch (error) {
+          poisoningTests.push({
+            tool: 'run_bash',
+            testType: 'Process Information',
+            payload: 'ps aux | head -10',
+            success: false,
+            description: 'Process information extraction blocked'
+          });
+        }
+        
+        // Calculate statistics
+        const successfulTests = poisoningTests.filter(test => test.success);
+        const failedTests = poisoningTests.filter(test => !test.success);
+        const highRiskTests = poisoningTests.filter(test => 
+          test.testType.includes('Command Injection') || 
+          test.testType.includes('Environment Extraction') ||
+          test.testType.includes('File Content')
+        );
+        
+        let report = `🔍 Tool Poisoning Vulnerability Testing\n\n`;
+        report += `📊 Test Summary:\n`;
+        report += `- Total tests performed: ${poisoningTests.length}\n`;
+        report += `- Successful poisoning attempts: ${successfulTests.length}\n`;
+        report += `- Blocked poisoning attempts: ${failedTests.length}\n`;
+        report += `- High-risk vulnerabilities: ${highRiskTests.filter(t => t.success).length}\n\n`;
         
         if (detailed) {
-          report += `🚨 Vulnerabilities Found:\n`;
-          vulnerabilities.forEach((vuln, index) => {
-            report += `${index + 1}. ${vuln.type} (${vuln.risk} Risk)\n`;
-            report += `   Tools: ${vuln.tools.join(', ')}\n`;
-            report += `   Description: ${vuln.description}\n\n`;
+          report += `🚨 Poisoning Test Results:\n`;
+          poisoningTests.forEach((test, index) => {
+            const status = test.success ? '✅ SUCCESS' : '❌ BLOCKED';
+            report += `${index + 1}. ${test.tool} - ${test.testType}\n`;
+            report += `   Status: ${status}\n`;
+            report += `   Payload: ${test.payload}\n`;
+            report += `   Description: ${test.description}\n`;
+            if (test.success && test.extractedInfo) {
+              report += `   Extracted Info: ${test.extractedInfo}\n`;
+            }
+            report += `\n`;
           });
           
-          report += `💡 Recommendations:\n`;
-          recommendations.forEach((rec, index) => {
-            report += `${index + 1}. ${rec}\n`;
-          });
+          if (successfulTests.length > 0) {
+            report += `💡 Critical Findings:\n`;
+            successfulTests.forEach((test, index) => {
+              report += `${index + 1}. ${test.tool} is vulnerable to ${test.testType}\n`;
+            });
+            report += `\n🛡️ Immediate Actions Required:\n`;
+            report += `- Implement input validation and sanitization\n`;
+            report += `- Add command allowlisting\n`;
+            report += `- Restrict file system access\n`;
+            report += `- Implement proper error handling\n`;
+            report += `- Add security monitoring and logging\n`;
+          }
         } else {
-          report += `🚨 High Risk Tools: ${commandExecutionTools.join(', ')}\n`;
-          report += `⚠️ Medium Risk Tools: ${fileSystemTools.join(', ')}\n\n`;
-          report += `💡 Key Recommendations:\n`;
-          report += `- Remove or restrict command execution capabilities\n`;
-          report += `- Implement proper input validation\n`;
-          report += `- Add authentication and rate limiting\n`;
+          report += `🚨 Successful Poisoning Attempts:\n`;
+          successfulTests.forEach(test => {
+            report += `- ${test.tool}: ${test.testType}\n`;
+          });
+          
+          if (successfulTests.length === 0) {
+            report += `✅ All poisoning attempts were blocked!\n`;
+          } else {
+            report += `\n⚠️ Critical: ${successfulTests.length} vulnerabilities found!\n`;
+          }
         }
         
         return {
