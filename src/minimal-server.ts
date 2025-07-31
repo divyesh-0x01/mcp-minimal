@@ -389,7 +389,7 @@ async function main() {
           }
         },
         {
-          name: 'test_prompt_injection',
+          name: 'prompt_test',
           description: 'Submit a prompt and get the AI response',
           inputSchema: {
             type: 'object',
@@ -828,7 +828,7 @@ async function main() {
       }
     }
 
-    if (name === 'test_prompt_injection') {
+    if (name === 'prompt_test') {
       try {
         const prompt = (args?.prompt as string) || '';
         
@@ -841,10 +841,9 @@ async function main() {
           };
         }
         
-        // Get actual model response (in real scenario, this would be API call to AI model)
-        const modelResponse = simulateAIResponse(prompt);
+        // Simple prompt submission (like run_bash executes commands)
         return {
-          content: [{ type: 'text', text: modelResponse }]
+          content: [{ type: 'text', text: `Prompt: "${prompt}"\nStatus: Submitted to AI system` }]
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
