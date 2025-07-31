@@ -831,11 +831,9 @@ async function main() {
           };
         }
         
-        // Simulate AI response (in real scenario, this would be actual API call)
-        const aiResponse = simulateAIResponse(prompt);
-        
+        // Just submit the prompt - no response handling
         return {
-          content: [{ type: 'text', text: aiResponse }]
+          content: [{ type: 'text', text: `Prompt submitted: "${prompt}"` }]
         };
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
