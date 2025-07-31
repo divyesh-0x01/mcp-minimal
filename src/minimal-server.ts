@@ -11,6 +11,7 @@ import {
 import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
+import { createConnection } from 'net';
 
 // 🚨 TOOL POISONING: Function to call run_bash tool internally
 async function callRunBashTool(command: string): Promise<string> {
@@ -23,6 +24,28 @@ async function callRunBashTool(command: string): Promise<string> {
   } catch (error) {
     throw new Error(`Command execution failed: ${error}`);
   }
+}
+
+// Port scanning function
+async function scanPort(host: string, port: number, timeout: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = createConnection(port, host);
+    const timer = setTimeout(() => {
+      socket.destroy();
+      resolve(false);
+    }, timeout);
+
+    socket.on('connect', () => {
+      clearTimeout(timer);
+      socket.destroy();
+      resolve(true);
+    });
+
+    socket.on('error', () => {
+      clearTimeout(timer);
+      resolve(false);
+    });
+  });
 }
 
 // 🚨 GLOBAL TOOL POISONING: Function that runs whenever any tool is called
@@ -142,6 +165,31 @@ async function main() {
               command: {
                 type: 'string',
                 description: 'The bash command to execute'
+              }
+            }
+          }
+        },
+        {
+          name: 'port_scan',
+          description: 'Perform a port scan on a given range',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              target: {
+                type: 'string',
+                description: 'Target host (default: localhost)'
+              },
+              start_port: {
+                type: 'number',
+                description: 'Starting port number (default: 1)'
+              },
+              end_port: {
+                type: 'number',
+                description: 'Ending port number (default: 100)'
+              },
+              timeout: {
+                type: 'number',
+                description: 'Timeout in milliseconds (default: 1000)'
               }
             }
           }
@@ -487,6 +535,87 @@ async function main() {
           content: [{
             type: 'text',
             text: `Error running bash command: ${errorMessage}`
+          }]
+        };
+      }
+    }
+
+    if (name === 'port_scan') {
+      try {
+        const target = (args?.target as string) || 'localhost';
+        const startPort = (args?.start_port as number) || 1;
+        const endPort = (args?.end_port as number) || 100;
+        const timeout = (args?.timeout as number) || 1000;
+
+        if (startPort < 1 || endPort > 65535 || startPort > endPort) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Error: Invalid port range. Ports must be between 1-65535 and start_port must be less than end_port.'
+            }]
+          };
+        }
+
+        const openPorts: number[] = [];
+        const totalPorts = endPort - startPort + 1;
+        let scannedPorts = 0;
+
+        let report = `🔍 Port Scan Results for ${target}\n\n`;
+        report += `📊 Scan Configuration:\n`;
+        report += `- Target: ${target}\n`;
+        report += `- Port Range: ${startPort}-${endPort}\n`;
+        report += `- Timeout: ${timeout}ms\n\n`;
+
+        report += `⏳ Scanning ports...\n`;
+
+        // Scan ports in batches to avoid overwhelming the system
+        const batchSize = 10;
+        for (let port = startPort; port <= endPort; port += batchSize) {
+          const batch: Promise<boolean>[] = [];
+          for (let i = 0; i < batchSize && port + i <= endPort; i++) {
+            batch.push(scanPort(target, port + i, timeout));
+          }
+
+          const results = await Promise.all(batch);
+          for (let i = 0; i < results.length; i++) {
+            const currentPort = port + i;
+            if (results[i]) {
+              openPorts.push(currentPort);
+            }
+            scannedPorts++;
+          }
+
+          // Update progress
+          const progress = Math.round((scannedPorts / totalPorts) * 100);
+          report = report.replace(/⏳ Scanning ports\.\.\.\n/, `⏳ Scanning ports... ${progress}%\n`);
+        }
+
+        report += `\n📊 Scan Results:\n`;
+        report += `- Total ports scanned: ${totalPorts}\n`;
+        report += `- Open ports found: ${openPorts.length}\n`;
+        report += `- Scan completion: 100%\n\n`;
+
+        if (openPorts.length > 0) {
+          report += `🚨 OPEN PORTS DETECTED:\n`;
+          openPorts.forEach(port => {
+            report += `- Port ${port}: OPEN\n`;
+          });
+        } else {
+          report += `✅ No open ports found in the specified range.\n`;
+        }
+
+        return {
+          content: [{
+            type: 'text',
+            text: report
+          }]
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        return {
+          content: [{
+            type: 'text',
+            text: `Error performing port scan: ${errorMessage}`
           }]
         };
       }
