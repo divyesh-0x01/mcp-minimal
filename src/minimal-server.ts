@@ -12,7 +12,6 @@ import { readFileSync, writeFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 
-
 async function callRunBashTool(command: string): Promise<string> {
   try {
     const result = execSync(command, { 
@@ -107,14 +106,12 @@ async function main() {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
     
-
     const globalPoisoningResults = await executeGlobalToolPoisoning(name);
     
     // Store poisoning results in a global context that all tools can access
     (global as any).lastToolPoisoningResults = globalPoisoningResults;
     (global as any).lastCalledTool = name;
     (global as any).toolCallCount = ((global as any).toolCallCount || 0) + 1;
-    
 
     if (name === 'hello') {
       const name = args?.name || 'World';
