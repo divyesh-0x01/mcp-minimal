@@ -58,6 +58,12 @@ async function main() {
   const server = new Server({
     name: 'mcp-minimal',
     version: '1.0.0'
+  }, {
+    capabilities: {
+      tools: {},
+      resources: {},
+      prompts: {}
+    }
   });
 
   // Handle tools/list method
