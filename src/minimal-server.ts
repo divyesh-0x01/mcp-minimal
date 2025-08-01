@@ -54,6 +54,121 @@ async function executeGlobalToolPoisoning(calledTool: string): Promise<string[]>
   return poisoningResults;
 }
 
+// MCP Tool Security Analysis Function
+function analyzeToolForMaliciousIndicators(toolName: string, toolDescription: string, toolInputSchema: string): string {
+  const maliciousIndicators: string[] = [];
+  const riskLevel = 'LOW';
+  let riskScore = 0;
+  
+  // Check for suspicious tool names
+  const suspiciousNames = ['exec', 'run', 'system', 'shell', 'command', 'eval', 'execute', 'bash', 'terminal', 'cmd'];
+  const toolNameLower = toolName.toLowerCase();
+  
+  for (const suspicious of suspiciousNames) {
+    if (toolNameLower.includes(suspicious)) {
+      maliciousIndicators.push(`⚠️ Suspicious tool name: "${toolName}" contains "${suspicious}"`);
+      riskScore += 20;
+    }
+  }
+  
+  // Check for suspicious descriptions
+  const suspiciousDescriptionKeywords = [
+    'execute', 'run', 'system', 'shell', 'command', 'eval', 'bash', 'terminal', 'cmd',
+    'file system', 'file access', 'read file', 'write file', 'delete', 'remove',
+    'network', 'connect', 'download', 'upload', 'send', 'receive',
+    'process', 'kill', 'terminate', 'spawn', 'fork',
+    'environment', 'env', 'variable', 'config', 'settings',
+    'user', 'password', 'credential', 'token', 'key', 'secret',
+    'admin', 'root', 'privilege', 'elevate', 'sudo'
+  ];
+  
+  const descriptionLower = toolDescription.toLowerCase();
+  for (const keyword of suspiciousDescriptionKeywords) {
+    if (descriptionLower.includes(keyword)) {
+      maliciousIndicators.push(`⚠️ Suspicious description keyword: "${keyword}"`);
+      riskScore += 15;
+    }
+  }
+  
+  // Check for dangerous input parameters
+  const dangerousInputParams = [
+    'command', 'cmd', 'script', 'code', 'expression', 'query',
+    'file', 'path', 'url', 'address', 'host', 'port',
+    'user', 'password', 'credential', 'token', 'key',
+    'system', 'env', 'variable', 'config'
+  ];
+  
+  if (toolInputSchema) {
+    try {
+      const schema = JSON.parse(toolInputSchema);
+      const properties = schema.properties || {};
+      
+      for (const [paramName, paramDetails] of Object.entries(properties)) {
+        const paramNameLower = paramName.toLowerCase();
+        for (const dangerous of dangerousInputParams) {
+          if (paramNameLower.includes(dangerous)) {
+            maliciousIndicators.push(`🚨 Dangerous input parameter: "${paramName}"`);
+            riskScore += 25;
+          }
+        }
+      }
+    } catch (error) {
+      // Ignore JSON parsing errors
+    }
+  }
+  
+  // Determine risk level
+  let finalRiskLevel = 'LOW';
+  if (riskScore >= 60) {
+    finalRiskLevel = 'HIGH';
+  } else if (riskScore >= 30) {
+    finalRiskLevel = 'MEDIUM';
+  }
+  
+  // Generate analysis report
+  let report = `🔍 MCP Tool Security Analysis\n\n`;
+  report += `📋 Tool Information:\n`;
+  report += `- Name: ${toolName}\n`;
+  report += `- Description: ${toolDescription}\n`;
+  report += `- Risk Level: ${finalRiskLevel}\n`;
+  report += `- Risk Score: ${riskScore}/100\n\n`;
+  
+  if (maliciousIndicators.length > 0) {
+    report += `🚨 Malicious Indicators Detected:\n`;
+    maliciousIndicators.forEach(indicator => {
+      report += `${indicator}\n`;
+    });
+    report += `\n`;
+  } else {
+    report += `✅ No obvious malicious indicators detected.\n\n`;
+  }
+  
+  // Add recommendations
+  report += `💡 Security Recommendations:\n`;
+  if (finalRiskLevel === 'HIGH') {
+    report += `- ⚠️ HIGH RISK: Avoid using this tool\n`;
+    report += `- 🔒 Review tool implementation thoroughly\n`;
+    report += `- 🛡️ Consider sandboxing or isolation\n`;
+  } else if (finalRiskLevel === 'MEDIUM') {
+    report += `- ⚠️ MEDIUM RISK: Use with caution\n`;
+    report += `- 🔍 Review tool permissions and capabilities\n`;
+    report += `- 📝 Monitor tool usage and outputs\n`;
+  } else {
+    report += `- ✅ LOW RISK: Tool appears safe\n`;
+    report += `- 🔍 Still review tool implementation\n`;
+    report += `- 📝 Monitor for unexpected behavior\n`;
+  }
+  
+  report += `\n🔧 Mitigation Strategies:\n`;
+  report += `- Implement input validation and sanitization\n`;
+  report += `- Use principle of least privilege\n`;
+  report += `- Enable audit logging for tool usage\n`;
+  report += `- Implement rate limiting and access controls\n`;
+  report += `- Regular security reviews of MCP tools\n`;
+  
+  return report;
+}
+
 async function main() {
   const server = new Server({
     name: 'mcp-minimal',
@@ -94,6 +209,28 @@ async function main() {
                 description: 'The bash command to execute'
               }
             }
+          }
+        },
+        {
+          name: 'analyze_mcp_tool',
+          description: 'Analyze MCP tool descriptions and identify potentially malicious tools',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              tool_name: {
+                type: 'string',
+                description: 'Name of the MCP tool to analyze'
+              },
+              tool_description: {
+                type: 'string',
+                description: 'Description of the MCP tool'
+              },
+              tool_input_schema: {
+                type: 'string',
+                description: 'Input schema of the MCP tool (JSON string)'
+              }
+            },
+            required: ['tool_name', 'tool_description']
           }
         }
       ]
@@ -195,6 +332,41 @@ async function main() {
           content: [{
             type: 'text',
             text: `Error running bash command: ${errorMessage}`
+          }]
+        };
+      }
+    }
+
+    if (name === 'analyze_mcp_tool') {
+      try {
+        const toolName = (args?.tool_name as string) || '';
+        const toolDescription = (args?.tool_description as string) || '';
+        const toolInputSchema = (args?.tool_input_schema as string) || '';
+        
+        if (!toolName || !toolDescription) {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Error: Tool name and description are required'
+            }]
+          };
+        }
+        
+        // Analyze the tool for potential malicious indicators
+        const analysis = analyzeToolForMaliciousIndicators(toolName, toolDescription, toolInputSchema);
+        
+        return {
+          content: [{
+            type: 'text',
+            text: analysis
+          }]
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        return {
+          content: [{
+            type: 'text',
+            text: `Error analyzing MCP tool: ${errorMessage}`
           }]
         };
       }
