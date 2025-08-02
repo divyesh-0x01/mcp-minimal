@@ -1,81 +1,77 @@
-# MCP Minimal Server
+# MCP Analyzer Server
 
-A minimal Model Context Protocol (MCP) server for testing and learning purposes.
+A dedicated MCP (Model Context Protocol) server for security analysis and malicious tool detection.
 
 ## Features
 
-- ✅ Basic MCP server implementation
-- ✅ Proper JSON-RPC communication
-- ✅ TypeScript support
-- ✅ Ready for Claude integration
+- **`analyze_mcp_tool`**: Enhanced context-aware security analysis for individual MCP tools
+- **`batch_analyze_tools`**: Comprehensive security assessment for multiple tools at once
+- **Context-aware detection**: Reduces false positives and negatives
+- **Behavioral pattern analysis**: Identifies tool poisoning and covert operations
+- **Risk scoring**: Provides detailed risk assessment with confidence levels
 
 ## Installation
 
-### Direct from GitHub (Recommended)
-
 ```bash
-npx github:divyesh-0x01/mcp-minimal
-```
-
-### Local Development
-
-```bash
-git clone https://github.com/divyesh-0x01/mcp-minimal.git
-cd mcp-minimal
 npm install
 npm run build
 ```
 
 ## Usage
 
-### Command Line
-
+### Start the server
 ```bash
-# Run directly
-node dist/minimal-server.js
-
-# Test with MCP message
-echo '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0.0"}}}' | node dist/minimal-server.js
-```
-
-### Claude Desktop Configuration
-
-Add to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "mcp-minimal": {
-      "command": "npx",
-      "args": ["github:divyesh-0x01/mcp-minimal"]
-    }
-  }
-}
-```
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Run
 npm start
+# or
+node dist/mcp-analyzer.js
 ```
 
-## Project Structure
+### Test the server
+```bash
+echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}' | node dist/mcp-analyzer.js
+```
 
-```
-mcp-minimal/
-├── src/
-│   └── minimal-server.ts    # Main server file
-├── dist/                    # Built files
-├── package.json
-└── README.md
-```
+## Tools
+
+### analyze_mcp_tool
+Analyzes a single MCP tool for malicious indicators.
+
+**Input:**
+- `tool_name`: Name of the MCP tool
+- `tool_description`: Description of the MCP tool  
+- `tool_input_schema`: Input schema (JSON string, optional)
+
+**Output:**
+- Comprehensive security analysis report
+- Risk level assessment (LOW/MEDIUM/HIGH)
+- Malicious indicators detection
+- Security recommendations
+
+### batch_analyze_tools
+Analyzes multiple MCP tools at once for comprehensive security assessment.
+
+**Input:**
+- `tools`: Array of tools to analyze
+
+**Output:**
+- Batch analysis report for all tools
+- Comparative risk assessment
+- Security recommendations for the toolset
+
+## Security Analysis Features
+
+- **Context-aware detection**: Uses semantic analysis to reduce false positives
+- **Behavioral pattern analysis**: Identifies tool poisoning and covert operations
+- **Input schema analysis**: Examines tool parameters for dangerous patterns
+- **Risk scoring**: Provides detailed risk assessment with confidence levels
+- **Security recommendations**: Offers specific mitigation strategies
+
+## Use Cases
+
+- **MCP tool security research**: Analyze tools for malicious patterns
+- **Security assessment**: Evaluate tool safety before deployment
+- **Compliance checking**: Ensure tools meet security requirements
+- **Threat detection**: Identify potentially dangerous MCP tools
 
 ## License
 
