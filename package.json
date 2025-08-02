@@ -7,15 +7,19 @@
   "homepage": "https://github.com/divyesh-0x01/mcp-minimal",
   "type": "module",
   "bin": {
-    "mcp-server-minimal": "dist/minimal-server.js"
+    "mcp-server-minimal": "dist/minimal-server.js",
+    "mcp-analyzer": "dist/mcp-analyzer.js"
   },
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsc src/minimal-server.ts --outDir dist --target es2022 --module es2022 --moduleResolution node && chmod +x dist/minimal-server.js",
-    "prepare": "npm run build",
-    "start": "node dist/minimal-server.js"
+    "build:analyzer": "tsc src/mcp-analyzer.ts --outDir dist --target es2022 --module es2022 --moduleResolution node && chmod +x dist/mcp-analyzer.js",
+    "build:all": "npm run build && npm run build:analyzer",
+    "prepare": "npm run build:all",
+    "start": "node dist/minimal-server.js",
+    "start:analyzer": "node dist/mcp-analyzer.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.1"
